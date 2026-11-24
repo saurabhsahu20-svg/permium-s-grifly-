@@ -13,7 +13,7 @@ The package stays `com.saurabhsvision.sbrowser`. Keep the existing storage schem
 
 Never commit the private key or passwords. The default expected certificate SHA-256 is the new permanent Grifly public certificate fingerprint: `7950d7c6bb15da8a44a05421849527213b1822c12e64f49155f048e286cc3e3b`. Configure the corresponding new key in repository secrets. For legacy signing, only explicitly set `GRIFLY_ORIGINAL_CERT_SHA256` when the verified legacy key is available. Different signing identities cannot normally update each other.
 
-With no signing credentials, Actions builds a TEST_ONLY artifact, not a public update. A certificate-matched APK must pass the regression tests and package/version checks before it is published to Releases. Never replace a previously published version. The update checker in v2.0.3 points to this repository. Older app builds may require one manual compatible update before they use the new update source.
+With no signing credentials, regular builds fail closed. A separate TEST_ONLY build is available only by manually enabling the test_only workflow input; it is not a public update. A certificate-matched APK must pass the regression tests and package/version checks before it is published to Releases. Never replace a previously published version. The update checker in v2.0.3 points to this repository. Older app builds may require one manual compatible update before they use the new update source.
 
 ## Changes
 
@@ -24,3 +24,5 @@ Physical-device testing and upgrade verification remain required before producti
 ## 2.0.3 performance and reliability
 
 Restore saved tabs without loading all pages concurrently; background tabs load only when selected. Validate URL hosts, ports and credentials; upgrade HTTP addresses to HTTPS; avoid repeated history writes; close and clear live tabs when clearing browsing data. Secure URL regression coverage added. Twelve pure-Java regression test programs passed locally on the base source and updated address/news modules. Full Android build and on-device startup, scrolling, RAM and network latency remain unverified. YouTube channel integration added to Student Dashboard and More menu: https://www.youtube.com/@saurabhsvision.
+
+Signing migration: the supplied v1.9.4 APK and new permanent certificate have different SHA-256 fingerprints. A new-key APK cannot replace the legacy APK in place. Preserve important local data before migration. Do not publish private keys or passwords. Repository owner must configure the four signing secrets before running a normal build.
