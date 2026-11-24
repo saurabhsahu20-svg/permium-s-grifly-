@@ -72,6 +72,7 @@ public final class MainActivity extends Activity {
         WHITE=0xfff4f8ff, MUTED=0xff9cb2ce, CYAN=0xff55e4f4,
         MINT=0xff72eabb, PURPLE=0xffa993ff;
     private static final int PICK_FILE=81, VOICE_SEARCH=82, MAX_TABS=8;
+    private static final String VISION_YOUTUBE_URL="https://www.youtube.com/@saurabhsvision";
     private static final String[] FOCUS_DOMAINS={
         "instagram.com","tiktok.com","facebook.com","x.com","reddit.com"
     };
@@ -945,6 +946,9 @@ public final class MainActivity extends Activity {
                 openAddress("https://saurabhsahu20-svg.github.io/Saurabhs-Vision-/vision-app/"));
         add(learning,open,12);
         add(layout,learning,6);
+        homeBanner(layout,"▶","Saurabh’s Vision • YouTube",
+            "Official channel • @saurabhsvision",
+            0xfffff5f5,0xffffe4e6,0xffe9a8ae,this::openVisionYouTube);
         // Verified official GitHub release downloads for the owner's apps.
         // Where a public release APK is not yet available, use the Actions build page.
         homeSection(layout,"⬇","My Apps • APK Downloads");
@@ -958,7 +962,7 @@ public final class MainActivity extends Activity {
             "Crystal Volume Booster • Builds"
         };
         String[] appLinks={
-            "https://github.com/saurabhsahu20-svg/Saurabhs-Vision-/releases",
+            "https://github.com/saurabhsahu20-svg/permium-s-grifly-/releases",
             "https://github.com/saurabhsahu20-svg/Saurabhs-Vision-/releases/download/s-board-v1.9.15/S_Board_v1.9.15_ABC_SYMBOLS_STABLE.apk",
             "https://github.com/saurabhsahu20-svg/aura-dialer-/releases/download/v1.9.6-clean-recents-preview/S-Caller-v1.9.6-Clean-Recents-Preview.apk",
             "https://github.com/saurabhsahu20-svg/AasPass-app/releases/download/msgu-ai-studio-v1.1.1-login-fix-beta/MsgU-v1.1.1-Login-Fix-Debug.apk",
@@ -1597,6 +1601,9 @@ public final class MainActivity extends Activity {
             .setMessage("Reopen up to "+saved.size()+" saved pages.")
             .setPositiveButton("Restore",(d,i)->restoreTabs(saved)).setNegativeButton("Cancel",null).show();
     }
+    private void openVisionYouTube(){
+        openAddress(VISION_YOUTUBE_URL);
+    }
     private void showTools(){
         String[] choices={"☆  Bookmark this page","⌕  Find in page",
             "Aa  Define selected word","☷  Reading mode","✎  Study notes",
@@ -1606,7 +1613,8 @@ public final class MainActivity extends Activity {
             "⚑  CG Jobs, Railway & Exams","▤  Latest CG City News",
             "→  Forward page","✦  Daily Assembly & Fun",
             "↻  Check for Grifly updates","☑  Automatic update notices ON/OFF",
-            "▤  Daily News","▦  Student Dashboard","◐  Home appearance","↶  Restore previous tabs"};
+            "▤  Daily News","▦  Student Dashboard","◐  Home appearance","↶  Restore previous tabs",
+            "▶  Saurabh’s Vision • YouTube"};
         new AlertDialog.Builder(this).setTitle("Grifly tools").setItems(choices,(d,i)->{
             Tab tab=current();
             switch(i){
@@ -1657,6 +1665,7 @@ public final class MainActivity extends Activity {
                 case 21:showStudentDashboard();break;
                 case 22:chooseHomeTheme();break;
                 case 23:offerRestoreTabs();break;
+                case 24:openVisionYouTube();break;
             }
         }).show();
     }
