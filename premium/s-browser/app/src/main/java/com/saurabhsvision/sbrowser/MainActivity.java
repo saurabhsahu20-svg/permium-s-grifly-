@@ -707,61 +707,46 @@ public final class MainActivity extends Activity {
         progress.setVisibility(View.GONE);
         ScrollView scroll=new ScrollView(this);
         scroll.setFillViewport(true);
-        scroll.setBackgroundColor(Color.TRANSPARENT);
-        contentFrame.addView(new HomeWaves(this),
-            new FrameLayout.LayoutParams(-1,-1));
+        scroll.setVerticalScrollBarEnabled(false);
+        scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        scroll.setBackground(gradient(0xffffffff,0xffedf5ff,0,0));
         contentFrame.addView(scroll,new FrameLayout.LayoutParams(-1,-1));
         LinearLayout layout=column();
-        layout.setPadding(dp(14),dp(12),dp(14),dp(30));
-        scroll.addView(layout);
-        // Inspired by a clean search engine landing page, with Grifly identity.
+        int screenWidth=getResources().getDisplayMetrics().widthPixels;
+        int contentWidth=Math.min(screenWidth,dp(620));
+        layout.setPadding(dp(20),dp(14),dp(20),dp(28));
+        layout.setFocusableInTouchMode(true);
+        scroll.addView(layout,new FrameLayout.LayoutParams(contentWidth,-2,Gravity.TOP|Gravity.CENTER_HORIZONTAL));
         LinearLayout links=row();
-        TextView all=homeButton("ALL",0xffffffff,0,HOME_BLUE,this::showHome);
-        TextView images=homeButton("IMAGES",0xffffffff,0,HOME_MUTED,
+        TextView all=homeButton("All",0xffeaf2ff,0,HOME_BLUE,this::showHome);
+        TextView images=homeButton("Images",Color.TRANSPARENT,0,HOME_MUTED,
             ()->openAddress("https://www.google.com/imghp?hl=en"));
         links.addView(all,new LinearLayout.LayoutParams(dp(68),dp(48)));
-        links.addView(images,new LinearLayout.LayoutParams(dp(94),dp(48)));
-        View spacer=new View(this);
-        links.addView(spacer,new LinearLayout.LayoutParams(0,dp(48),1));
-        TextView daily=homeButton("♧",0xffffffff,0,HOME_INK,this::showDailyAssembly);
-        daily.setContentDescription("Daily assembly");
-        links.addView(daily,new LinearLayout.LayoutParams(dp(48),dp(48)));
-        TextView features=homeButton("▦",0xffffffff,0,HOME_INK,
-            this::showStudentDashboard);
-        features.setContentDescription("Study Dashboard");
-        links.addView(features,new LinearLayout.LayoutParams(dp(48),dp(48)));
+        links.addView(images,new LinearLayout.LayoutParams(dp(88),dp(48)));
+        links.addView(new View(this),new LinearLayout.LayoutParams(0,dp(48),1));
+        TextView tools=homeButton("☷",0xfff0f5fd,0,HOME_INK,this::showTools);
+        tools.setContentDescription("More browser tools");
+        links.addView(tools,new LinearLayout.LayoutParams(dp(48),dp(48)));
         add(layout,links,0);
-        View underline=new View(this);
-        underline.setBackgroundColor(HOME_BLUE);
-        LinearLayout.LayoutParams ul=new LinearLayout.LayoutParams(dp(49),dp(2));
-        layout.addView(underline,ul);
-
-        // Top margin scales gently by screen height. Do not push input off
-        // small phones or leave the keyboard obscuring important controls.
         int screenDp=(int)(getResources().getDisplayMetrics().heightPixels/
             getResources().getDisplayMetrics().density);
-        int heroGap=Math.max(16,Math.min(40,screenDp/20));
-        View gap=new View(this);
-        layout.addView(gap,new LinearLayout.LayoutParams(-1,dp(heroGap)));
-        ImageView rainbowLogo=new ImageView(this);
-        rainbowLogo.setImageResource(R.drawable.rainbow_s_icon);
-        rainbowLogo.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        rainbowLogo.setContentDescription("Rainbow Grifly logo");
-        LinearLayout.LayoutParams rainbowParams=new LinearLayout.LayoutParams(
-            dp(84),dp(84));
-        rainbowParams.gravity=Gravity.CENTER_HORIZONTAL;
-        layout.addView(rainbowLogo,rainbowParams);
-        TextView brand=griflyRainbow(48);
+        int heroGap=Math.max(38,Math.min(142,screenDp/7));
+        layout.addView(new View(this),new LinearLayout.LayoutParams(-1,dp(heroGap)));
+        TextView brand=griflyRainbow(64);
+        brand.setBackgroundColor(Color.TRANSPARENT);
+        brand.setElevation(0);
+        brand.setPadding(0,0,0,0);
+        brand.setShadowLayer(0,0,0,0);
         brand.setGravity(Gravity.CENTER);
         brand.setContentDescription("Grifly search home");
         add(layout,brand,0);
-        TextView byline=text("Explore • Study • Learn • Grow",15,0xff061c47,true);
+        TextView byline=text("Explore • Study • Learn • Grow",14,HOME_MUTED,false);
         byline.setGravity(Gravity.CENTER);
-        add(layout,byline,6);
+        add(layout,byline,4);
 
         LinearLayout box=row();
-        box.setBackground(card(0xffffffff,0xff1272ff,30));
-        box.setElevation(dp(2));
+        box.setBackground(card(0xffffffff,0xffb9cde6,30));
+        box.setElevation(dp(3));
         box.setPadding(dp(12),0,dp(8),0);
         TextView searchIcon=text("⌕",29,0xff0b367d,true);
         searchIcon.setGravity(Gravity.CENTER);
@@ -795,50 +780,16 @@ public final class MainActivity extends Activity {
         });
         go.setContentDescription("Search or open website");
         box.addView(go,new LinearLayout.LayoutParams(dp(48),dp(48)));
-        add(layout,box,19);
+        add(layout,box,28);
 
-        TextView study=text("▦  Open Student Dashboard",17,0xff0860de,true);
-        study.setGravity(Gravity.CENTER);
-        study.setPadding(dp(8),dp(13),dp(8),dp(13));
-        study.setBackground(gradient(0xffedf5ff,0xffdceaff,0xffb8d3fa,18));
-        study.setOnClickListener(v->showStudentDashboard());
-        add(layout,study,14);
-        homeSection(layout,"✦","Quick access");
-        View[] shortcuts={
-            homeFeature("★","Bookmarks",0xffffffff,0xffedf2ff,0xffd0dcf2,this::showBookmarks),
-            homeFeature("↓","Downloads",0xffffffff,0xffe5f5f1,0xffc6e4da,this::openDownloads),
-            homeFeature("▤","Daily News",0xffffffff,0xffedf5ff,0xffcbdff7,()->openAssemblySection(4)),
-            homeFeature("◷","History",0xffffffff,0xfff2efff,0xffded6f6,this::showHistory)
-        };
-        addFeatureGrid(layout,shortcuts,2);
-
-        List<BrowserStore.Site> history=store.list("history");
-        LinearLayout headingRow=row();
-        headingRow.setGravity(Gravity.CENTER_VERTICAL);
-        headingRow.setBackground(gradient(0xffd9ecff,0xfff7fbff,0,0));
-        View accent=new View(this);
-        accent.setBackground(card(0xff086bff,0,3));
-        LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(dp(4),dp(24));
-        ap.rightMargin=dp(12);
-        headingRow.addView(accent,ap);
-        TextView heading=text(history.isEmpty()?"START EXPLORING":"RECENTLY VISITED",
-            19,0xff061c47,true);
-        headingRow.addView(heading,new LinearLayout.LayoutParams(0,dp(45),1));
-        add(layout,headingRow,29);
-        if(history.isEmpty()){
-            addSearchSuggestion(layout,"News and current affairs","latest India news");
-            addSearchSuggestion(layout,"Study resources","educational resources");
-            addSearchSuggestion(layout,"Explore Saurabh Vision","https://saurabhsahu20-svg.github.io/Saurabhs-Vision-/vision-app/");
-            addSearchSuggestion(layout,"Student dashboard",null);
-        }else{
-            int count=0;
-            for(BrowserStore.Site item:history){
-                if(count++>=7)break;
-                String title=item.title==null||item.title.trim().isEmpty()?
-                    item.url:item.title;
-                addSearchSuggestion(layout,title,item.url);
-            }
-        }
+        TextView study=homeButton("▦  Student Dashboard",0xffeef4ff,0xffd1e0f4,
+            HOME_BLUE,this::showStudentDashboard);
+        study.setContentDescription("Open Student Dashboard");
+        LinearLayout.LayoutParams studyParams=new LinearLayout.LayoutParams(-2,dp(48));
+        studyParams.gravity=Gravity.CENTER_HORIZONTAL;
+        studyParams.topMargin=dp(20);
+        layout.addView(study,studyParams);
+        layout.requestFocus();
         refreshTabBadge();
     }
     private void addSearchSuggestion(LinearLayout host,String title,String target){
@@ -1576,7 +1527,8 @@ public final class MainActivity extends Activity {
             "⊘  Clear browsing data","ⓘ  About Grifly",
             "⚑  CG Jobs, Railway & Exams","▤  Latest CG City News",
             "→  Forward page","✦  Daily Assembly & Fun",
-            "↻  Check for Grifly updates","☑  Automatic update notices ON/OFF"};
+            "↻  Check for Grifly updates","☑  Automatic update notices ON/OFF",
+            "▤  Daily News","▦  Student Dashboard"};
         new AlertDialog.Builder(this).setTitle("Grifly tools").setItems(choices,(d,i)->{
             Tab tab=current();
             switch(i){
@@ -1623,6 +1575,8 @@ public final class MainActivity extends Activity {
                 case 17:showDailyAssembly();break;
                 case 18:checkGriflyUpdates(true);break;
                 case 19:toggleAutoUpdates();break;
+                case 20:openAssemblySection(4);break;
+                case 21:showStudentDashboard();break;
             }
         }).show();
     }
