@@ -20,7 +20,7 @@ public final class AddressResolver {
            lc.matches("^[a-z][a-z0-9+.-]*:.*") && !text.matches("(?i)^[a-z0-9][a-z0-9.-]*\\.[a-z]{2,}:[0-9]{1,5}([/?#].*)?$"))return null;
         if(text.matches("(?i)^[a-z0-9][a-z0-9.-]*\\.[a-z]{2,}(:[0-9]{1,5})?([/?#][^ ]*)?$"))
             return secureUrl("https://"+text);
-        String query = URLEncoder.encode(text, StandardCharsets.UTF_8);
+        String query = UrlTools.encodeQuery(text);
         if ("duckduckgo".equalsIgnoreCase(engine)) return "https://duckduckgo.com/?q=" + query;
         if ("bing".equalsIgnoreCase(engine)) return "https://www.bing.com/search?q=" + query;
         return "https://www.google.com/search?q=" + query;
