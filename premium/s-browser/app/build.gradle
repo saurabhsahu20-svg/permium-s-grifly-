@@ -19,8 +19,8 @@ android {
         applicationId 'com.saurabhsvision.sbrowser'
         minSdk 26
         targetSdk 34
-        versionCode 28
-        versionName '2.0.3-beta'
+        versionCode 29
+        versionName '2.0.4-beta'
     }
     signingConfigs {
         if (stableSigning) {
