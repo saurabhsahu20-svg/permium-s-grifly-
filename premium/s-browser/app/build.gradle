@@ -19,8 +19,8 @@ android {
         applicationId 'com.saurabhsvision.sbrowser'
         minSdk 26
         targetSdk 34
-        versionCode 29
-        versionName '2.0.4-beta'
+        versionCode 30
+        versionName '2.0.5-beta'
     }
     signingConfigs {
         if (stableSigning) {
@@ -34,8 +34,11 @@ android {
     }
     buildTypes {
         debug {
-            // Native Android in-place updates are possible only when the
-            // installed app and the new APK have identical signing identity.
+            applicationIdSuffix '.test'
+        }
+        release {
+            debuggable false
+            minifyEnabled false
             if (stableSigning) signingConfig signingConfigs.stableRelease
         }
     }
