@@ -28,8 +28,8 @@ jobs:
           set -euo pipefail
           cp overlay/premium/s-browser/app/build.gradle source/s-browser/app/build.gradle
           cp overlay/premium/s-browser/app/src/main/java/com/saurabhsvision/sbrowser/MainActivity.java source/s-browser/app/src/main/java/com/saurabhsvision/sbrowser/MainActivity.java
-          test "$(git hash-object source/s-browser/app/build.gradle)" = d81a32630834231b4ed6efbd38d0f3ae9bce6b0e
-          test "$(git hash-object source/s-browser/app/src/main/java/com/saurabhsvision/sbrowser/MainActivity.java)" = 14b10f1bea672de64ecbf78aaae689db29c32c7b
+          test "$(git hash-object source/s-browser/app/build.gradle)" = 4b409f92c621770cd4caf6db8032b3693b29e6ca
+          test "$(git hash-object source/s-browser/app/src/main/java/com/saurabhsvision/sbrowser/MainActivity.java)" = 7f2263d2b664c842fa9908dca9efa083bad893e5
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -64,12 +64,12 @@ jobs:
       - name: Verify APK and stage output
         run: |
           mkdir -p dist
-          cp source/s-browser/app/build/outputs/apk/debug/app-debug.apk dist/Grifly_v2.0.0_Premium_beta.apk
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose dist/Grifly_v2.0.0_Premium_beta.apk
+          cp source/s-browser/app/build/outputs/apk/debug/app-debug.apk dist/Grifly_v2.0.1_Premium_beta.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose dist/Grifly_v2.0.1_Premium_beta.apk
           cd dist
           sha256sum *.apk > SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: Grifly-v2.0.0-Premium-APK
+          name: Grifly-v2.0.1-Premium-APK
           path: dist/
           if-no-files-found: error
