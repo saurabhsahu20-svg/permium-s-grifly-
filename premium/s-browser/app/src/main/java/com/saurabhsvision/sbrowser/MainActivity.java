@@ -85,6 +85,7 @@ public final class MainActivity extends Activity {
     private int selected=-1;
     private boolean home=true;
     private boolean dashboardOpen=false;
+    private boolean checkingUpdates=false;
     private BrowserStore store;
     private DictionaryRepository dictionary;
     private TextToSpeech tts;
@@ -310,15 +311,17 @@ public final class MainActivity extends Activity {
         }catch(Exception ignored){return "Unknown version";}
     }
     private void checkGriflyUpdates(boolean manual){
+        if(checkingUpdates){if(manual)toast("Update check already running");return;}
         SharedPreferences prefs=getSharedPreferences("grifly_update_preferences",MODE_PRIVATE);
         if(!manual){
             if(!prefs.getBoolean("auto_check",true))return;
             long last=prefs.getLong("last_checked",0);
             long now=System.currentTimeMillis();
             if(last>0 && now-last>=0 && now-last<24L*60*60*1000)return;
-            prefs.edit().putLong("last_checked",now).apply();
         }else toast("Checking official Grifly releases…");
+        checkingUpdates=true;
         GriflyUpdateChecker.check(getApplicationContext(),(latest,error)->{
+            checkingUpdates=false;
             if(isFinishing()||isDestroyed())return;
             if(error!=null){
                 if(manual) new AlertDialog.Builder(this).setTitle("Grifly updates")
@@ -326,6 +329,7 @@ public final class MainActivity extends Activity {
                     .setPositiveButton("OK",null).show();
                 return;
             }
+            prefs.edit().putLong("last_checked",System.currentTimeMillis()).apply();
             int[] current=GriflyVersion.fromInstalled(installedVersion());
             if(current==null){
                 if(manual)toast("Could not read installed version");
@@ -342,7 +346,7 @@ public final class MainActivity extends Activity {
             prefs.edit().putString("last_prompt_tag",latest.tag).apply();
             new AlertDialog.Builder(this).setTitle("New Grifly update available")
                 .setMessage("Installed: "+installedVersion()+"\\nNew: "+latest.tag+
-                    "\\n\\nGrifly can open the official GitHub download page. Android must ask before installing an APK. In-place updates require the same signing certificate as your installed version.")
+                    "\\n\\nDownload the owner-signed APK from the official release. Android verifies its signing certificate before updating; keep your existing app installed.")
                 .setPositiveButton("View official update",(d,w)->openAddress(latest.releasePage))
                 .setNegativeButton("Later",null).show();
         });
@@ -709,7 +713,11 @@ public final class MainActivity extends Activity {
         scroll.setFillViewport(true);
         scroll.setVerticalScrollBarEnabled(false);
         scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
-        scroll.setBackground(gradient(0xffffffff,0xffedf5ff,0,0));
+        boolean dark=darkHome();
+        int homeSurface=dark?0xff15263d:0xffffffff;
+        int homeText=dark?0xffe5efff:HOME_INK;
+        int homeMuted=dark?0xffb9cce6:HOME_MUTED;
+        scroll.setBackground(gradient(dark?0xff0b1729:0xffffffff,dark?0xff142741:0xffedf5ff,0,0));
         contentFrame.addView(scroll,new FrameLayout.LayoutParams(-1,-1));
         LinearLayout layout=column();
         int screenWidth=getResources().getDisplayMetrics().widthPixels;
@@ -718,13 +726,13 @@ public final class MainActivity extends Activity {
         layout.setFocusableInTouchMode(true);
         scroll.addView(layout,new FrameLayout.LayoutParams(contentWidth,-2,Gravity.TOP|Gravity.CENTER_HORIZONTAL));
         LinearLayout links=row();
-        TextView all=homeButton("All",0xffeaf2ff,0,HOME_BLUE,this::showHome);
-        TextView images=homeButton("Images",Color.TRANSPARENT,0,HOME_MUTED,
+        TextView all=homeButton("All",dark?0xff263f64:0xffeaf2ff,0,dark?0xffa8d4ff:HOME_BLUE,this::showHome);
+        TextView images=homeButton("Images",Color.TRANSPARENT,0,homeMuted,
             ()->openAddress("https://www.google.com/imghp?hl=en"));
         links.addView(all,new LinearLayout.LayoutParams(dp(68),dp(48)));
         links.addView(images,new LinearLayout.LayoutParams(dp(88),dp(48)));
         links.addView(new View(this),new LinearLayout.LayoutParams(0,dp(48),1));
-        TextView tools=homeButton("☷",0xfff0f5fd,0,HOME_INK,this::showTools);
+        TextView tools=homeButton("☷",dark?0xff263f64:0xfff0f5fd,0,homeText,this::showTools);
         tools.setContentDescription("More browser tools");
         links.addView(tools,new LinearLayout.LayoutParams(dp(48),dp(48)));
         add(layout,links,0);
@@ -740,22 +748,22 @@ public final class MainActivity extends Activity {
         brand.setGravity(Gravity.CENTER);
         brand.setContentDescription("Grifly search home");
         add(layout,brand,0);
-        TextView byline=text("Explore • Study • Learn • Grow",14,HOME_MUTED,false);
+        TextView byline=text("Explore • Study • Learn • Grow",14,homeMuted,false);
         byline.setGravity(Gravity.CENTER);
         add(layout,byline,4);
 
         LinearLayout box=row();
-        box.setBackground(card(0xffffffff,0xffb9cde6,30));
+        box.setBackground(card(homeSurface,dark?0xff42638c:0xffb9cde6,30));
         box.setElevation(dp(3));
         box.setPadding(dp(12),0,dp(8),0);
-        TextView searchIcon=text("⌕",29,0xff0b367d,true);
+        TextView searchIcon=text("⌕",29,homeText,true);
         searchIcon.setGravity(Gravity.CENTER);
         box.addView(searchIcon,new LinearLayout.LayoutParams(dp(35),dp(54)));
         EditText query=new EditText(this);
         query.setSingleLine(true);
         query.setTextSize(16);
-        query.setTextColor(HOME_INK);
-        query.setHintTextColor(0xff82909f);
+        query.setTextColor(homeText);
+        query.setHintTextColor(homeMuted);
         query.setHint("Search or enter a website");
         query.setBackgroundColor(Color.TRANSPARENT);
         query.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
@@ -769,7 +777,7 @@ public final class MainActivity extends Activity {
             }
             return false;
         });
-        TextView mic=text("🎙",20,HOME_MUTED,true);
+        TextView mic=text("🎙",20,homeMuted,true);
         mic.setGravity(Gravity.CENTER);
         mic.setContentDescription("Voice search");
         mic.setOnClickListener(v->requestVoiceSearch());
@@ -782,8 +790,8 @@ public final class MainActivity extends Activity {
         box.addView(go,new LinearLayout.LayoutParams(dp(48),dp(48)));
         add(layout,box,28);
 
-        TextView study=homeButton("▦  Student Dashboard",0xffeef4ff,0xffd1e0f4,
-            HOME_BLUE,this::showStudentDashboard);
+        TextView study=homeButton("▦  Student Dashboard",dark?0xff263f64:0xffeef4ff,dark?0xff42638c:0xffd1e0f4,
+            dark?0xffa8d4ff:HOME_BLUE,this::showStudentDashboard);
         study.setContentDescription("Open Student Dashboard");
         LinearLayout.LayoutParams studyParams=new LinearLayout.LayoutParams(-2,dp(48));
         studyParams.gravity=Gravity.CENTER_HORIZONTAL;
@@ -999,11 +1007,17 @@ public final class MainActivity extends Activity {
         refreshTabBadge();
     }
     private void restoreTabs(List<String> urls){
-        store.saveSession(new ArrayList<>());
         for(String url:urls){
             if(tabs.size()>=MAX_TABS)break;
+            String safe=AddressResolver.resolve(url,store.searchEngine());
+            if(safe==null||!safe.startsWith("https://")||focusBlocked(Uri.parse(safe)))continue;
+            boolean exists=false;
+            for(Tab existing:tabs)if(safe.equals(existing.web.getUrl())){exists=true;break;}
+            if(exists)continue;
             Tab tab=createTab();
-            tab.web.loadUrl(url);
+            if(tab==null)break;
+            tab.web.loadUrl(safe);
+            tab.web.onPause();
         }
         if(!tabs.isEmpty()){selected=tabs.size()-1;attachCurrent();}
     }
@@ -1095,6 +1109,12 @@ public final class MainActivity extends Activity {
                 }
                 return false;
             }
+            @Override public void onReceivedError(WebView view,WebResourceRequest request,android.webkit.WebResourceError error){
+                if(request.isForMainFrame()&&tab==current()&&!home){
+                    progress.setVisibility(View.GONE);
+                    toast("Page could not load. Check your connection and try again.");
+                }
+            }
             @Override public void onReceivedSslError(WebView view,SslErrorHandler handler,SslError error){
                 handler.cancel();toast("Unsafe certificate: connection blocked");
             }
@@ -1102,7 +1122,8 @@ public final class MainActivity extends Activity {
                 // Android may kill WebView renderers under memory pressure. Recover
                 // just the crashed tab, not the entire browser or user's bookmarks.
                 int index=tabs.indexOf(tab);
-                if(index<0)return true;
+                if(index<0){try{view.destroy();}catch(Exception ignored){}return true;}
+                progress.setVisibility(View.GONE);
                 boolean visible=!home&&index==selected;
                 tabs.remove(index);
                 if(view.getParent() instanceof ViewGroup)
@@ -1116,7 +1137,7 @@ public final class MainActivity extends Activity {
                     if(visible)attachCurrent();
                     else refreshTabBadge();
                 }
-                toast("Web page restarted after a renderer error");
+                toast("A web tab closed after a renderer error. Other data is safe.");
                 return true;
             }
             @Override public void onPageStarted(WebView view,String url,android.graphics.Bitmap icon){
@@ -1519,6 +1540,24 @@ public final class MainActivity extends Activity {
         try{startActivity(new Intent(DownloadManager.ACTION_VIEW_DOWNLOADS));}
         catch(Exception e){toast("Open your phone's Downloads app");}
     }
+    private boolean darkHome(){
+        int mode=getSharedPreferences("grifly_ui",MODE_PRIVATE).getInt("home_theme",0);
+        return mode==2||(mode==0&&(getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)==android.content.res.Configuration.UI_MODE_NIGHT_YES);
+    }
+    private void chooseHomeTheme(){
+        SharedPreferences prefs=getSharedPreferences("grifly_ui",MODE_PRIVATE);
+        new AlertDialog.Builder(this).setTitle("Home appearance")
+            .setSingleChoiceItems(new String[]{"System","Light","Dark"},prefs.getInt("home_theme",0),(d,i)->{
+                prefs.edit().putInt("home_theme",i).apply();d.dismiss();showHome();
+            }).setNegativeButton("Cancel",null).show();
+    }
+    private void offerRestoreTabs(){
+        List<String> saved=store.session();
+        if(saved.isEmpty()){toast("No saved tabs");return;}
+        new AlertDialog.Builder(this).setTitle("Restore previous tabs?")
+            .setMessage("Reopen up to "+saved.size()+" saved pages.")
+            .setPositiveButton("Restore",(d,i)->restoreTabs(saved)).setNegativeButton("Cancel",null).show();
+    }
     private void showTools(){
         String[] choices={"☆  Bookmark this page","⌕  Find in page",
             "Aa  Define selected word","☷  Reading mode","✎  Study notes",
@@ -1528,7 +1567,7 @@ public final class MainActivity extends Activity {
             "⚑  CG Jobs, Railway & Exams","▤  Latest CG City News",
             "→  Forward page","✦  Daily Assembly & Fun",
             "↻  Check for Grifly updates","☑  Automatic update notices ON/OFF",
-            "▤  Daily News","▦  Student Dashboard"};
+            "▤  Daily News","▦  Student Dashboard","◐  Home appearance","↶  Restore previous tabs"};
         new AlertDialog.Builder(this).setTitle("Grifly tools").setItems(choices,(d,i)->{
             Tab tab=current();
             switch(i){
@@ -1577,6 +1616,8 @@ public final class MainActivity extends Activity {
                 case 19:toggleAutoUpdates();break;
                 case 20:openAssemblySection(4);break;
                 case 21:showStudentDashboard();break;
+                case 22:chooseHomeTheme();break;
+                case 23:offerRestoreTabs();break;
             }
         }).show();
     }
@@ -1601,7 +1642,7 @@ public final class MainActivity extends Activity {
             String url=tab.web.getUrl();
             if(url!=null&&url.startsWith("http"))session.add(url);
         }
-        store.saveSession(session);
+        if(!session.isEmpty())store.saveSession(session);
     }
     @Override protected void onDestroy(){
         if(tts!=null){tts.stop();tts.shutdown();tts=null;}
