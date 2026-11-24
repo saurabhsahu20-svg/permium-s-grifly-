@@ -3,6 +3,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      test_only:
+        description: 'Build a separate debug APK for testing only (not an update)'
+        type: boolean
+        default: false
 permissions:
   contents: write
 concurrency:
@@ -50,7 +55,7 @@ jobs:
           if [ ! -f "$ANDROID_HOME/platforms/android-35/android.jar" ] || [ ! -x "$ANDROID_HOME/build-tools/35.0.0/apksigner" ]; then
             sdkmanager --install 'platforms;android-35' 'build-tools;35.0.0'
           fi
-      - name: Restore original signing key (if available)
+      - name: Require permanent signing key for normal updates
         id: signing
         shell: bash
         env:
@@ -58,11 +63,15 @@ jobs:
           STORE_PASSWORD: ${{ secrets.GRIFLY_SIGNING_STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.GRIFLY_SIGNING_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.GRIFLY_SIGNING_KEY_PASSWORD }}
+          TEST_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.test_only }}
         run: |
           set -euo pipefail
-          if [ -z "$KEYSTORE_B64$STORE_PASSWORD$KEY_ALIAS$KEY_PASSWORD" ]; then
+          if [ "$TEST_ONLY" = true ]; then
             echo "owner_signed=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::No original key. Only a test APK will be produced; it will NOT be published as an update."
+            echo "::warning::Explicit test-only build, not a compatible update."
+          elif [ -z "$KEYSTORE_B64$STORE_PASSWORD$KEY_ALIAS$KEY_PASSWORD" ]; then
+            echo "::error::Permanent signing key is not configured. Set the four GRIFLY_SIGNING secrets in repository Settings. No regular APK is produced."
+            exit 1
           elif [ -n "$KEYSTORE_B64" ] && [ -n "$STORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASSWORD" ]; then
             umask 077
             printf '%s' "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/grifly-stable-signing.jks"
@@ -124,7 +133,7 @@ jobs:
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release already exists; not replacing a published APK."
           else
-            gh release create "$tag" dist/Grifly_v2.0.4_Stability.apk dist/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Grifly 2.0.4 Performance beta" --notes "Permanent signing baseline. In-place updates work only for apps already signed with the matching key. Older differently signed installations require migration; back up important data first. Device testing remains necessary."
+            gh release create "$tag" dist/Grifly_v2.0.4_Performance.apk dist/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Grifly 2.0.4 Performance beta" --notes "Permanent signing baseline. In-place updates work only for apps already signed with the matching key. Older differently signed installations require migration; back up important data first. Device testing remains necessary."
           fi
       - name: Remove signing material
         if: always()
