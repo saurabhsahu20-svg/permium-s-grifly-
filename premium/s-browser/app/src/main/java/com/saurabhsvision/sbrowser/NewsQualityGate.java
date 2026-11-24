@@ -65,7 +65,7 @@ public final class NewsQualityGate {
         String q=headline==null?"":headline.trim();
         if(q.length()>120)q=q.substring(0,120);
         return "https://news.google.com/search?q="+
-            java.net.URLEncoder.encode(q,java.nio.charset.StandardCharsets.UTF_8)+
+            UrlTools.encodeQuery(q)+
             "&hl=en-IN&gl=IN&ceid=IN:en";
     }
 }
