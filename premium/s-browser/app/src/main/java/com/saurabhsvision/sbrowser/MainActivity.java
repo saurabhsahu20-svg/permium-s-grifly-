@@ -82,6 +82,7 @@ public final class MainActivity extends Activity {
         String mobileUserAgent="";
         boolean desktop=false;
         String pendingUrl=null;
+        boolean loadFailed=false;
         String lastHistoryUrl=null,lastHistoryTitle=null;
     }
     private final ArrayList<Tab> tabs=new ArrayList<>();
@@ -1085,12 +1086,13 @@ public final class MainActivity extends Activity {
         }
         web.onResume();
         Tab active=tabs.get(selected);
+        progress.setVisibility(web.getProgress()<100&&!active.loadFailed?View.VISIBLE:View.GONE);
         if(active.pendingUrl!=null){
             String pending=active.pendingUrl;active.pendingUrl=null;
             if(!focusBlocked(Uri.parse(pending))){web.loadUrl(pending);address.setText(pending);refreshTabBadge();return;}
         }
         String url=web.getUrl();
-        address.setText(url!=null&&url.startsWith("http")?url:"");
+        address.setText(AddressResolver.secureUrl(url)!=null?url:"");
         refreshTabBadge();
     }
     private void configureWebView(Tab tab){
@@ -1127,21 +1129,24 @@ public final class MainActivity extends Activity {
                 return false;
             }
             @Override public void onReceivedError(WebView view,WebResourceRequest request,android.webkit.WebResourceError error){
+                if(request.isForMainFrame())tab.loadFailed=true;
                 if(request.isForMainFrame()&&tab==current()&&!home){
                     progress.setVisibility(View.GONE);
                     toast("Page could not load. Check your connection and try again.");
                 }
             }
             @Override public void onReceivedSslError(WebView view,SslErrorHandler handler,SslError error){
-                handler.cancel();toast("Unsafe certificate: connection blocked");
+                tab.loadFailed=true;
+                handler.cancel();if(tab==current()&&!home)progress.setVisibility(View.GONE);
+                toast("Unsafe certificate: connection blocked");
             }
             @Override public boolean onRenderProcessGone(WebView view,RenderProcessGoneDetail detail){
                 // Android may kill WebView renderers under memory pressure. Recover
                 // just the crashed tab, not the entire browser or user's bookmarks.
                 int index=tabs.indexOf(tab);
                 if(index<0){try{view.destroy();}catch(Exception ignored){}return true;}
-                progress.setVisibility(View.GONE);
                 boolean visible=!home&&index==selected;
+                if(visible){progress.setVisibility(View.GONE);if(fullScreenVideo!=null)hideVideo();}
                 tabs.remove(index);
                 if(view.getParent() instanceof ViewGroup)
                     ((ViewGroup)view.getParent()).removeView(view);
@@ -1158,14 +1163,17 @@ public final class MainActivity extends Activity {
                 return true;
             }
             @Override public void onPageStarted(WebView view,String url,android.graphics.Bitmap icon){
+                if(!tabs.contains(tab))return;
+                tab.loadFailed=false;
                 if(selected>=0&&selected<tabs.size()&&tabs.get(selected)==tab&&!home){
                     address.setText(url);progress.setVisibility(View.VISIBLE);
                 }
             }
             @Override public void onPageFinished(WebView view,String url){
-                tab.title=view.getTitle()==null||view.getTitle().isEmpty()?url:view.getTitle();
                 if(!tabs.contains(tab))return;
-                if(url!=null&&(!url.equals(tab.lastHistoryUrl)||!java.util.Objects.equals(tab.title,tab.lastHistoryTitle))){
+                if(url==null||!url.equals(view.getUrl()))return;
+                tab.title=view.getTitle()==null||view.getTitle().isEmpty()?url:view.getTitle();
+                if(!tab.loadFailed&&AddressResolver.secureUrl(url)!=null&&(!url.equals(tab.lastHistoryUrl)||!java.util.Objects.equals(tab.title,tab.lastHistoryTitle))){
                     store.history(url,tab.title);tab.lastHistoryUrl=url;tab.lastHistoryTitle=tab.title;
                 }
                 refreshTabStrip();
@@ -1178,7 +1186,7 @@ public final class MainActivity extends Activity {
             @Override public void onProgressChanged(WebView view,int p){
                 if(!home&&selected>=0&&selected<tabs.size()&&tabs.get(selected)==tab){
                     progress.setProgress(p);
-                    progress.setVisibility(p>=100?View.GONE:View.VISIBLE);
+                    progress.setVisibility(p>=100||tab.loadFailed?View.GONE:View.VISIBLE);
                 }
             }
             @Override public boolean onShowFileChooser(WebView v,ValueCallback<Uri[]> callback,
@@ -1189,14 +1197,14 @@ public final class MainActivity extends Activity {
                 catch(Exception e){fileCallback=null;toast("File picker unavailable");return false;}
             }
             @Override public void onShowCustomView(View view,CustomViewCallback callback){
-                if(fullScreenVideo!=null){callback.onCustomViewHidden();return;}
+                if(fullScreenVideo!=null||tab!=current()||home){callback.onCustomViewHidden();return;}
                 fullScreenVideo=view;videoCallback=callback;
                 ((ViewGroup)root.getParent()).addView(view,
                     new ViewGroup.LayoutParams(-1,-1));
                 top.setVisibility(View.GONE);bottom.setVisibility(View.GONE);
                 root.setVisibility(View.INVISIBLE);
             }
-            @Override public void onHideCustomView(){hideVideo();}
+            @Override public void onHideCustomView(){if(tab==current())hideVideo();}
         });
         web.setDownloadListener((url,userAgent,disposition,mimeType,length)->
             downloadFile(url,mimeType,disposition));
@@ -1253,12 +1261,12 @@ public final class MainActivity extends Activity {
                 if(tabs.size()<MAX_TABS){createTab();showHome();}
                 else toast("Close a tab first.");
             }).setNegativeButton("Done",null).create();
-        if(tabs.isEmpty())add(list,text("No tabs open yet.",15,MUTED,false),10);
+        if(tabs.isEmpty())add(list,text("No tabs open yet.",15,HOME_MUTED,false),10);
         for(int i=0;i<tabs.size();i++){
             final Tab tab=tabs.get(i);
             LinearLayout entry=row();
             TextView title=text((i+1)+". "+(tab.title==null?"New Tab":tab.title),
-                14,WHITE,false);
+                14,HOME_INK,false);
             title.setSingleLine(true);
             entry.addView(title,new LinearLayout.LayoutParams(0,dp(59),1));
             title.setOnClickListener(v->{
@@ -1276,6 +1284,7 @@ public final class MainActivity extends Activity {
         int index=tabs.indexOf(tab);
         if(index<0)return;
         boolean current=!home&&index==selected;
+        if(current&&fullScreenVideo!=null)hideVideo();
         tabs.remove(index);
         if(tab.web.getParent() instanceof ViewGroup)
             ((ViewGroup)tab.web.getParent()).removeView(tab.web);
@@ -1550,16 +1559,19 @@ public final class MainActivity extends Activity {
         new AlertDialog.Builder(this).setTitle("Clear browsing data?")
             .setMessage("This removes local history, website cookies and stored site data. Saved bookmarks and dictionary remain.")
             .setNegativeButton("Cancel",null).setPositiveButton("Clear",(d,w)->{
+                if(fullScreenVideo!=null)hideVideo();
                 store.clearHistory();
                 store.saveSession(new ArrayList<>());
                 CookieManager.getInstance().removeAllCookies(removed->CookieManager.getInstance().flush());
                 WebStorage.getInstance().deleteAllData();
-                for(Tab t:new ArrayList<>(tabs)){
+                ArrayList<Tab> closing=new ArrayList<>(tabs);
+                tabs.clear();selected=-1;
+                for(Tab t:closing){
                     t.web.stopLoading();t.web.clearHistory();t.web.clearCache(true);
                     if(t.web.getParent() instanceof ViewGroup)((ViewGroup)t.web.getParent()).removeView(t.web);
                     t.web.destroy();
                 }
-                tabs.clear();selected=-1;sessionTouched=true;showHome();refreshTabStrip();
+                sessionTouched=true;showHome();refreshTabStrip();
                 toast("Local browsing data cleared");
             }).show();
     }
@@ -1614,7 +1626,7 @@ public final class MainActivity extends Activity {
             "→  Forward page","✦  Daily Assembly & Fun",
             "↻  Check for Grifly updates","☑  Automatic update notices ON/OFF",
             "▤  Daily News","▦  Student Dashboard","◐  Home appearance","↶  Restore previous tabs",
-            "▶  Saurabh’s Vision • YouTube"};
+            "▶  Saurabh’s Vision • YouTube","↻  Reload / retry page"};
         new AlertDialog.Builder(this).setTitle("Grifly tools").setItems(choices,(d,i)->{
             Tab tab=current();
             switch(i){
@@ -1666,6 +1678,7 @@ public final class MainActivity extends Activity {
                 case 22:chooseHomeTheme();break;
                 case 23:offerRestoreTabs();break;
                 case 24:openVisionYouTube();break;
+                case 25:if(tab!=null&&!home){tab.loadFailed=false;tab.web.reload();}else toast("Open a web page first");break;
             }
         }).show();
     }
