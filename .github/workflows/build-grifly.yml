@@ -43,9 +43,9 @@ jobs:
           set -euo pipefail
           src=app/src/main/java/com/saurabhsvision/sbrowser
           mkdir -p "$RUNNER_TEMP/grifly-tests"
-          javac -d "$RUNNER_TEMP/grifly-tests" "$src"/{AddressResolver,UrlTools,DictionaryCore,CityNewsSources,GovtSources,DailyAssemblyContent,DailyNewsSources,DictionaryEntry,GriflyVersion,ModelPaperCatalog,NewsQualityGate}.java tests/*.java
+          javac -encoding UTF-8 -d "$RUNNER_TEMP/grifly-tests" "$src"/{AddressResolver,UrlTools,DictionaryCore,CityNewsSources,GovtSources,DailyAssemblyContent,DailyNewsSources,DictionaryEntry,GriflyVersion,ModelPaperCatalog,NewsQualityGate}.java tests/*.java
           for f in tests/*.java; do
-            java -cp "$RUNNER_TEMP/grifly-tests" "$(basename "$f" .java)"
+            java -ea -cp "$RUNNER_TEMP/grifly-tests" "$(basename "$f" .java)"
           done
       - uses: gradle/actions/setup-gradle@v4
         with:
@@ -64,14 +64,21 @@ jobs:
           KEY_ALIAS: ${{ secrets.GRIFLY_SIGNING_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.GRIFLY_SIGNING_KEY_PASSWORD }}
           TEST_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.test_only }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
           if [ "$TEST_ONLY" = true ]; then
             echo "owner_signed=false" >> "$GITHUB_OUTPUT"
             echo "::warning::Explicit test-only build, not a compatible update."
           elif [ -z "$KEYSTORE_B64$STORE_PASSWORD$KEY_ALIAS$KEY_PASSWORD" ]; then
-            echo "::error::Permanent signing key is not configured. Set the four GRIFLY_SIGNING secrets in repository Settings. No regular APK is produced."
-            exit 1
+            if [ "$EVENT_NAME" = push ]; then
+              echo "owner_signed=false" >> "$GITHUB_OUTPUT"
+              echo "::warning::Signing credentials absent. Compiling the isolated TEST_ONLY package for CI. No update will be published."
+              echo "### Signing setup required: CI test APK only; no compatible update will be published." >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "::error::Permanent signing key is not configured. Set the four GRIFLY_SIGNING secrets, or explicitly select test_only."
+              exit 1
+            fi
           elif [ -n "$KEYSTORE_B64" ] && [ -n "$STORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASSWORD" ]; then
             umask 077
             printf '%s' "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/grifly-stable-signing.jks"
@@ -136,6 +143,11 @@ jobs:
             echo "compatible=false" >> "$GITHUB_OUTPUT"
           fi
           (cd dist && sha256sum *.apk > SHA256SUMS.txt)
+          if [ "$OWNER_SIGNED" = true ]; then
+            echo "### Permanent certificate verified; release APK built." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### Isolated TEST_ONLY APK verified (different package; not an in-place update)." >> "$GITHUB_STEP_SUMMARY"
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: Grifly-v2.0.5-${{ steps.verify.outputs.compatible == 'true' && 'compatible-update' || 'test-only' }}
