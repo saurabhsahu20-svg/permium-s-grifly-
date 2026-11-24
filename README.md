@@ -1,6 +1,6 @@
 # Grifly Premium
 
-Version 2.0.3-beta (versionCode 28). Build with GitHub Actions.
+Version 2.0.4-beta (versionCode 29). Build with GitHub Actions.
 
 ## In-place updates
 
@@ -23,4 +23,4 @@ Physical-device testing and upgrade verification remain required before producti
 
 ## 2.0.3 performance and reliability
 
-Restore saved tabs without loading all pages concurrently; background tabs load only when selected. Validate URL hosts, ports and credentials; upgrade HTTP addresses to HTTPS; avoid repeated history writes; close and clear live tabs when clearing browsing data. Secure URL regression coverage added. Twelve pure-Java regression test programs passed locally on the base source and updated address/news modules. Full Android build and on-device startup, scrolling, RAM and network latency remain unverified. YouTube channel integration awaits the owner's confirmed URL.
+Restore saved tabs without loading all pages concurrently; background tabs load only when selected. Validate URL hosts, ports and credentials; upgrade HTTP addresses to HTTPS; avoid repeated history writes; close and clear live tabs when clearing browsing data. Secure URL regression coverage added. Twelve pure-Java regression test programs passed locally on the base source and updated address/news modules. Full Android build and on-device startup, scrolling, RAM and network latency remain unverified. YouTube channel integration added to Student Dashboard and More menu: https://www.youtube.com/@saurabhsvision.
