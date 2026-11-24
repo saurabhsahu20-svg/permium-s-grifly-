@@ -86,6 +86,9 @@ public final class MainActivity extends Activity {
     private boolean home=true;
     private boolean dashboardOpen=false;
     private boolean checkingUpdates=false;
+    private boolean sessionTouched=false;
+    private long lastDownloadId=-1;
+    private String lastDownloadUrl,lastDownloadMime,lastDownloadDisposition;
     private BrowserStore store;
     private DictionaryRepository dictionary;
     private TextToSpeech tts;
@@ -1052,7 +1055,7 @@ public final class MainActivity extends Activity {
         tab.web=new WebView(this);
         tab.mobileUserAgent=tab.web.getSettings().getUserAgentString();
         configureWebView(tab);
-        tabs.add(tab);selected=tabs.size()-1;
+        tabs.add(tab);sessionTouched=true;selected=tabs.size()-1;
         refreshTabBadge();
         return tab;
     }
@@ -1101,8 +1104,9 @@ public final class MainActivity extends Activity {
             @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest req){
                 Uri uri=req.getUrl();
                 String scheme=uri.getScheme();
-                if(!"https".equalsIgnoreCase(scheme)&&!"http".equalsIgnoreCase(scheme)){
-                    toast("Only web pages can open in Grifly");return true;
+                if(!"https".equalsIgnoreCase(scheme)){
+                    if(req.isForMainFrame())toast("Only secure HTTPS pages can open in Grifly");
+                    return true;
                 }
                 if(focusBlocked(uri)){
                     toast("Site blocked while Study Focus is enabled");return true;
@@ -1267,8 +1271,8 @@ public final class MainActivity extends Activity {
         else refreshTabBadge();
     }
     private void downloadFile(String url,String mime,String disposition){
-        if(url==null||!(url.startsWith("https://")||url.startsWith("http://"))){
-            toast("Only web downloads are supported");return;
+        if(url==null||!url.startsWith("https://")){
+            toast("Only secure HTTPS downloads are supported");return;
         }
         try{
             String filename=URLUtil.guessFileName(url,disposition,mime);
@@ -1279,7 +1283,8 @@ public final class MainActivity extends Activity {
             if(Build.VERSION.SDK_INT>=29)
                 request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS,filename);
             else request.setDestinationInExternalFilesDir(this,Environment.DIRECTORY_DOWNLOADS,filename);
-            ((DownloadManager)getSystemService(Context.DOWNLOAD_SERVICE)).enqueue(request);
+            lastDownloadId=((DownloadManager)getSystemService(Context.DOWNLOAD_SERVICE)).enqueue(request);
+            lastDownloadUrl=url;lastDownloadMime=mime;lastDownloadDisposition=disposition;
             toast("Downloading: "+filename);
         }catch(Exception e){toast("Download could not start");}
     }
@@ -1529,6 +1534,7 @@ public final class MainActivity extends Activity {
             .setMessage("This removes local history, website cookies and stored site data. Saved bookmarks and dictionary remain.")
             .setNegativeButton("Cancel",null).setPositiveButton("Clear",(d,w)->{
                 store.clearHistory();
+                store.saveSession(new ArrayList<>());
                 CookieManager.getInstance().removeAllCookies(null);
                 CookieManager.getInstance().flush();
                 WebStorage.getInstance().deleteAllData();
@@ -1537,6 +1543,22 @@ public final class MainActivity extends Activity {
             }).show();
     }
     private void openDownloads(){
+        if(lastDownloadId<0){openSystemDownloads();return;}
+        String status="Status unavailable";boolean failed=false;
+        try(android.database.Cursor cursor=((DownloadManager)getSystemService(DOWNLOAD_SERVICE)).query(new DownloadManager.Query().setFilterById(lastDownloadId))){
+            if(cursor!=null&&cursor.moveToFirst()){
+                int state=cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS));
+                failed=state==DownloadManager.STATUS_FAILED;
+                status=failed?"Failed":state==DownloadManager.STATUS_SUCCESSFUL?"Completed":state==DownloadManager.STATUS_PAUSED?"Paused by Android":state==DownloadManager.STATUS_RUNNING?"Downloading":"Queued";
+            }
+        }catch(Exception ignored){}
+        AlertDialog.Builder dialog=new AlertDialog.Builder(this).setTitle("Downloads")
+            .setMessage("Latest download: "+status+"\nAndroid manages background downloading and automatic resume.")
+            .setPositiveButton("All downloads",(d,i)->openSystemDownloads()).setNegativeButton("Close",null);
+        if(failed&&lastDownloadUrl!=null)dialog.setNeutralButton("Retry",(d,i)->downloadFile(lastDownloadUrl,lastDownloadMime,lastDownloadDisposition));
+        dialog.show();
+    }
+    private void openSystemDownloads(){
         try{startActivity(new Intent(DownloadManager.ACTION_VIEW_DOWNLOADS));}
         catch(Exception e){toast("Open your phone's Downloads app");}
     }
@@ -1642,7 +1664,7 @@ public final class MainActivity extends Activity {
             String url=tab.web.getUrl();
             if(url!=null&&url.startsWith("http"))session.add(url);
         }
-        if(!session.isEmpty())store.saveSession(session);
+        if(sessionTouched||!session.isEmpty())store.saveSession(session);
     }
     @Override protected void onDestroy(){
         if(tts!=null){tts.stop();tts.shutdown();tts=null;}
