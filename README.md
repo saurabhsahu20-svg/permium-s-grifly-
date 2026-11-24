@@ -13,7 +13,7 @@ The package stays `com.saurabhsvision.sbrowser`. Keep the existing storage schem
 
 Never commit the private key or passwords. The default expected certificate SHA-256 is the new permanent Grifly public certificate fingerprint: `7950d7c6bb15da8a44a05421849527213b1822c12e64f49155f048e286cc3e3b`. Configure the corresponding new key in repository secrets. For legacy signing, only explicitly set `GRIFLY_ORIGINAL_CERT_SHA256` when the verified legacy key is available. Different signing identities cannot normally update each other.
 
-With no signing credentials, regular builds fail closed. A separate TEST_ONLY build is available only by manually enabling the test_only workflow input; it is not a public update. A certificate-matched APK must pass the regression tests and package/version checks before it is published to Releases. Never replace a previously published version. The update checker in v2.0.3 points to this repository. Older app builds may require one manual compatible update before they use the new update source.
+Without signing credentials, push-triggered CI builds compile and verify an isolated TEST_ONLY package. They do not publish a compatible update. A manual normal release build fails closed unless signing credentials are configured. The manual test_only option remains available. A certificate-matched APK must pass the regression tests and package/version checks before it is published to Releases. Never replace a previously published version. The update checker in v2.0.3 points to this repository. Older app builds may require one manual compatible update before they use the new update source.
 
 ## Changes
 
