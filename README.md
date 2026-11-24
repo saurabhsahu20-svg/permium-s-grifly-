@@ -1,6 +1,6 @@
 # Grifly Premium
 
-Version 2.0.4-beta (versionCode 29). Build with GitHub Actions.
+Version 2.0.5-beta (versionCode 30). Build with GitHub Actions.
 
 ## In-place updates
 
@@ -26,3 +26,7 @@ Physical-device testing and upgrade verification remain required before producti
 Restore saved tabs without loading all pages concurrently; background tabs load only when selected. Validate URL hosts, ports and credentials; upgrade HTTP addresses to HTTPS; avoid repeated history writes; close and clear live tabs when clearing browsing data. Secure URL regression coverage added. Twelve pure-Java regression test programs passed locally on the base source and updated address/news modules. Full Android build and on-device startup, scrolling, RAM and network latency remain unverified. YouTube channel integration added to Student Dashboard and More menu: https://www.youtube.com/@saurabhsvision.
 
 Signing migration: the supplied v1.9.4 APK and new permanent certificate have different SHA-256 fingerprints. A new-key APK cannot replace the legacy APK in place. Preserve important local data before migration. Do not publish private keys or passwords. Repository owner must configure the four signing secrets before running a normal build.
+
+## 2.0.5 reliability
+
+Normal APK builds now use non-debuggable release signing. Explicit test APKs use the separate com.saurabhsvision.sbrowser.test package. Improved failed-page feedback and retry, tab cleanup, fullscreen ownership, history filtering and Android API 26-compatible UTF-8 query encoding. Local testing of the uploaded base source plus the encoding changes passed 11 pure-Java tests; the complete overlay and Android APK have not yet been verified on a device. Permanent signing secrets remain required for production updates.
