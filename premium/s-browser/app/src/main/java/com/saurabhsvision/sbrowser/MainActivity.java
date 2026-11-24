@@ -80,6 +80,8 @@ public final class MainActivity extends Activity {
         String title="New Tab";
         String mobileUserAgent="";
         boolean desktop=false;
+        String pendingUrl=null;
+        String lastHistoryUrl=null,lastHistoryTitle=null;
     }
     private final ArrayList<Tab> tabs=new ArrayList<>();
     private int selected=-1;
@@ -1015,14 +1017,15 @@ public final class MainActivity extends Activity {
             String safe=AddressResolver.resolve(url,store.searchEngine());
             if(safe==null||!safe.startsWith("https://")||focusBlocked(Uri.parse(safe)))continue;
             boolean exists=false;
-            for(Tab existing:tabs)if(safe.equals(existing.web.getUrl())){exists=true;break;}
+            for(Tab existing:tabs)if(safe.equals(existing.pendingUrl)||safe.equals(existing.web.getUrl())){exists=true;break;}
             if(exists)continue;
             Tab tab=createTab();
             if(tab==null)break;
-            tab.web.loadUrl(safe);
+            tab.pendingUrl=safe;
+            tab.title=Uri.parse(safe).getHost();
             tab.web.onPause();
         }
-        if(!tabs.isEmpty()){selected=tabs.size()-1;attachCurrent();}
+        if(!tabs.isEmpty()){selected=tabs.size()-1;attachCurrent();refreshTabStrip();}
     }
     private boolean focusBlocked(Uri uri){
         if(!store.focusMode())return false;
@@ -1043,6 +1046,7 @@ public final class MainActivity extends Activity {
         }
         Tab current=tabs.get(selected);
         // Reuse the selected WebView instead of recreating it for each search.
+        current.pendingUrl=null;
         attachCurrent();
         current.web.loadUrl(url);
         address.clearFocus();
@@ -1076,6 +1080,11 @@ public final class MainActivity extends Activity {
             contentFrame.addView(web,new FrameLayout.LayoutParams(-1,-1));
         }
         web.onResume();
+        Tab active=tabs.get(selected);
+        if(active.pendingUrl!=null){
+            String pending=active.pendingUrl;active.pendingUrl=null;
+            if(!focusBlocked(Uri.parse(pending))){web.loadUrl(pending);address.setText(pending);refreshTabBadge();return;}
+        }
         String url=web.getUrl();
         address.setText(url!=null&&url.startsWith("http")?url:"");
         refreshTabBadge();
@@ -1104,7 +1113,7 @@ public final class MainActivity extends Activity {
             @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest req){
                 Uri uri=req.getUrl();
                 String scheme=uri.getScheme();
-                if(!"https".equalsIgnoreCase(scheme)){
+                if(!"https".equalsIgnoreCase(scheme)||AddressResolver.secureUrl(uri.toString())==null){
                     if(req.isForMainFrame())toast("Only secure HTTPS pages can open in Grifly");
                     return true;
                 }
@@ -1151,7 +1160,10 @@ public final class MainActivity extends Activity {
             }
             @Override public void onPageFinished(WebView view,String url){
                 tab.title=view.getTitle()==null||view.getTitle().isEmpty()?url:view.getTitle();
-                if(url!=null)store.history(url,tab.title);
+                if(!tabs.contains(tab))return;
+                if(url!=null&&(!url.equals(tab.lastHistoryUrl)||!java.util.Objects.equals(tab.title,tab.lastHistoryTitle))){
+                    store.history(url,tab.title);tab.lastHistoryUrl=url;tab.lastHistoryTitle=tab.title;
+                }
                 refreshTabStrip();
                 if(selected>=0&&selected<tabs.size()&&tabs.get(selected)==tab&&!home){
                     address.setText(url);progress.setVisibility(View.GONE);
@@ -1271,11 +1283,12 @@ public final class MainActivity extends Activity {
         else refreshTabBadge();
     }
     private void downloadFile(String url,String mime,String disposition){
-        if(url==null||!url.startsWith("https://")){
+        if(AddressResolver.secureUrl(url)==null){
             toast("Only secure HTTPS downloads are supported");return;
         }
         try{
-            String filename=URLUtil.guessFileName(url,disposition,mime);
+            String filename=URLUtil.guessFileName(url,disposition,mime).replaceAll("[/\\\\\\p{Cntrl}]","_");
+            if(filename.equals(".")||filename.equals("..")||filename.trim().isEmpty())filename="download";
             DownloadManager.Request request=new DownloadManager.Request(Uri.parse(url));
             request.setTitle(filename);
             request.setMimeType(mime==null?"application/octet-stream":mime);
@@ -1535,10 +1548,14 @@ public final class MainActivity extends Activity {
             .setNegativeButton("Cancel",null).setPositiveButton("Clear",(d,w)->{
                 store.clearHistory();
                 store.saveSession(new ArrayList<>());
-                CookieManager.getInstance().removeAllCookies(null);
-                CookieManager.getInstance().flush();
+                CookieManager.getInstance().removeAllCookies(removed->CookieManager.getInstance().flush());
                 WebStorage.getInstance().deleteAllData();
-                for(Tab t:tabs)t.web.clearCache(true);
+                for(Tab t:new ArrayList<>(tabs)){
+                    t.web.stopLoading();t.web.clearHistory();t.web.clearCache(true);
+                    if(t.web.getParent() instanceof ViewGroup)((ViewGroup)t.web.getParent()).removeView(t.web);
+                    t.web.destroy();
+                }
+                tabs.clear();selected=-1;sessionTouched=true;showHome();refreshTabStrip();
                 toast("Local browsing data cleared");
             }).show();
     }
@@ -1661,8 +1678,8 @@ public final class MainActivity extends Activity {
         super.onStop();
         ArrayList<String> session=new ArrayList<>();
         for(Tab tab:tabs){
-            String url=tab.web.getUrl();
-            if(url!=null&&url.startsWith("http"))session.add(url);
+            String url=tab.pendingUrl!=null?tab.pendingUrl:tab.web.getUrl();
+            if(AddressResolver.secureUrl(url)!=null)session.add(url);
         }
         if(sessionTouched||!session.isEmpty())store.saveSession(session);
     }
