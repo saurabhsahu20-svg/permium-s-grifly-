@@ -1,0 +1,217 @@
+name: Grifly Premium Android APK
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout owner source at verified revision
+        uses: actions/checkout@v4
+        with:
+          repository: saurabhsahu20-svg/Saurabhs-Vision-
+          ref: 09e13f72e3506f9625a2b30f4e4c1847633b4358
+          persist-credentials: false
+      - name: Apply exact Grifly Premium ZIP code changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/premium.patch" <<'PATCH'
+          --- a/s-browser/app/build.gradle
+          +++ b/s-browser/app/build.gradle
+          @@ -19,8 +19,8 @@
+                   applicationId 'com.saurabhsvision.sbrowser'
+                   minSdk 26
+                   targetSdk 34
+          -        versionCode 24
+          -        versionName '1.9.5-beta'
+          +        versionCode 25
+          +        versionName '2.0.0-beta'
+               }
+               signingConfigs {
+                   if (stableSigning) {
+          --- a/s-browser/app/src/main/java/com/saurabhsvision/sbrowser/MainActivity.java
+          +++ b/s-browser/app/src/main/java/com/saurabhsvision/sbrowser/MainActivity.java
+          @@ -259,9 +259,22 @@
+                   titleView.setGravity(Gravity.CENTER);
+                   titleView.setMaxLines(2);
+                   tile.addView(titleView,new LinearLayout.LayoutParams(-1,dp(37)));
+          +        tile.setFocusable(true);
+                   tile.setOnClickListener(v->action.run());
+                   tile.setContentDescription(title);
+                   return tile;
+          +    }
+          +    private void addFeatureGrid(LinearLayout host,View[] cards,int columns){
+          +        for(int i=0;i<cards.length;i+=columns){
+          +            LinearLayout gridRow=row();
+          +            for(int j=0;j<columns;j++){
+          +                View cell=i+j<cards.length?cards[i+j]:new View(this);
+          +                LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(98),1);
+          +                if(j>0)p.leftMargin=dp(8);
+          +                gridRow.addView(cell,p);
+          +            }
+          +            add(host,gridRow,8);
+          +        }
+               }
+               private void homeBanner(LinearLayout host,String icon,String heading,String subtitle,
+                   int left,int right,int border,Runnable action){
+          @@ -727,7 +740,7 @@
+                   // small phones or leave the keyboard obscuring important controls.
+                   int screenDp=(int)(getResources().getDisplayMetrics().heightPixels/
+                       getResources().getDisplayMetrics().density);
+          -        int heroGap=Math.max(39,Math.min(99,screenDp/10));
+          +        int heroGap=Math.max(16,Math.min(40,screenDp/20));
+                   View gap=new View(this);
+                   layout.addView(gap,new LinearLayout.LayoutParams(-1,dp(heroGap)));
+                   ImageView rainbowLogo=new ImageView(this);
+          @@ -735,10 +748,10 @@
+                   rainbowLogo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+                   rainbowLogo.setContentDescription("Rainbow Grifly logo");
+                   LinearLayout.LayoutParams rainbowParams=new LinearLayout.LayoutParams(
+          -            dp(106),dp(106));
+          +            dp(84),dp(84));
+                   rainbowParams.gravity=Gravity.CENTER_HORIZONTAL;
+                   layout.addView(rainbowLogo,rainbowParams);
+          -        TextView brand=griflyRainbow(46);
+          +        TextView brand=griflyRainbow(48);
+                   brand.setGravity(Gravity.CENTER);
+                   brand.setContentDescription("Grifly search home");
+                   add(layout,brand,0);
+          @@ -748,7 +761,7 @@
+           
+                   LinearLayout box=row();
+                   box.setBackground(card(0xffffffff,0xff1272ff,30));
+          -        box.setElevation(dp(5));
+          +        box.setElevation(dp(2));
+                   box.setPadding(dp(12),0,dp(8),0);
+                   TextView searchIcon=text("⌕",29,0xff0b367d,true);
+                   searchIcon.setGravity(Gravity.CENTER);
+          @@ -775,14 +788,29 @@
+                   mic.setGravity(Gravity.CENTER);
+                   mic.setContentDescription("Voice search");
+                   mic.setOnClickListener(v->requestVoiceSearch());
+          -        box.addView(mic,new LinearLayout.LayoutParams(dp(40),dp(54)));
+          -        add(layout,box,25);
+          +        box.addView(mic,new LinearLayout.LayoutParams(dp(48),dp(54)));
+          +        TextView go=homeButton("→",0xff1269e9,0,0xffffffff,()->{
+          +            String value=query.getText().toString().trim();
+          +            if(!value.isEmpty())openAddress(value);
+          +        });
+          +        go.setContentDescription("Search or open website");
+          +        box.addView(go,new LinearLayout.LayoutParams(dp(48),dp(48)));
+          +        add(layout,box,19);
+           
+                   TextView study=text("▦  Open Student Dashboard",17,0xff0860de,true);
+                   study.setGravity(Gravity.CENTER);
+                   study.setPadding(dp(8),dp(13),dp(8),dp(13));
+          +        study.setBackground(gradient(0xffedf5ff,0xffdceaff,0xffb8d3fa,18));
+                   study.setOnClickListener(v->showStudentDashboard());
+          -        add(layout,study,18);
+          +        add(layout,study,14);
+          +        homeSection(layout,"✦","Quick access");
+          +        View[] shortcuts={
+          +            homeFeature("★","Bookmarks",0xffffffff,0xffedf2ff,0xffd0dcf2,this::showBookmarks),
+          +            homeFeature("↓","Downloads",0xffffffff,0xffe5f5f1,0xffc6e4da,this::openDownloads),
+          +            homeFeature("▤","Daily News",0xffffffff,0xffedf5ff,0xffcbdff7,()->openAssemblySection(4)),
+          +            homeFeature("◷","History",0xffffffff,0xfff2efff,0xffded6f6,this::showHistory)
+          +        };
+          +        addFeatureGrid(layout,shortcuts,2);
+           
+                   List<BrowserStore.Site> history=store.list("history");
+                   LinearLayout headingRow=row();
+          @@ -815,7 +843,8 @@
+               }
+               private void addSearchSuggestion(LinearLayout host,String title,String target){
+                   LinearLayout line=row();
+          -        line.setPadding(dp(12),dp(13),dp(10),dp(13));
+          +        line.setPadding(dp(12),dp(8),dp(10),dp(8));
+          +        line.setBackground(card(0xfff8fbff,0xffdbe8f8,14));
+                   TextView icon=text("⌕",25,0xff0674fc,true);
+                   line.addView(icon,new LinearLayout.LayoutParams(dp(37),dp(37)));
+                   TextView label=text(title,17,0xff061c47,true);
+          @@ -826,10 +855,7 @@
+                       if(target==null)showStudentDashboard();
+                       else openAddress(target);
+                   });
+          -        add(host,line,1);
+          -        View divider=new View(this);
+          -        divider.setBackgroundColor(0xffb5d7fb);
+          -        host.addView(divider,new LinearLayout.LayoutParams(-1,dp(1)));
+          +        add(host,line,6);
+               }
+               private void showStudentDashboard(){
+                   selectedNavigation=2;
+          @@ -910,9 +936,6 @@
+                   add(layout,rail,14);
+           
+                   homeSection(layout,"🎓","Study Tools");
+          -        HorizontalScrollView toolsScroll=new HorizontalScrollView(this);
+          -        toolsScroll.setHorizontalScrollBarEnabled(false);
+          -        LinearLayout tools=row();
+                   View[] cards={
+                       homeFeature("📖","Dictionary",0xfff8fcff,0xffcfebff,0xff9fcbff,
+                           ()->showDictionary("")),
+          @@ -935,13 +958,7 @@
+                       homeFeature("📥","Offline 140 PDFs",0xfffffbef,0xffffe4ab,0xffffcc7f,
+                           this::openNativeModelPapers)
+                   };
+          -        for(int i=0;i<cards.length;i++){
+          -            LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(106),dp(104));
+          -            if(i!=cards.length-1)p.rightMargin=dp(7);
+          -            tools.addView(cards[i],p);
+          -        }
+          -        toolsScroll.addView(tools,new HorizontalScrollView.LayoutParams(-2,-2));
+          -        add(layout,toolsScroll,6);
+          +        addFeatureGrid(layout,cards,2);
+           
+                   homeBanner(layout,"▣","CG Jobs & Exam Notices",
+                       "Official jobs • Admit cards • Results",
+          PATCH
+          git apply "$RUNNER_TEMP/premium.patch"
+          test "$(git hash-object s-browser/app/build.gradle)" = d81a32630834231b4ed6efbd38d0f3ae9bce6b0e
+          test "$(git hash-object s-browser/app/src/main/java/com/saurabhsvision/sbrowser/MainActivity.java)" = 14b10f1bea672de64ecbf78aaae689db29c32c7b
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Install Android SDK
+        run: |
+          sdkmanager --install 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Restore owner signing key if configured
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.GRIFLY_SIGNING_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            printf '%s' "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/grifly-stable-signing.jks"
+            chmod 600 "$RUNNER_TEMP/grifly-stable-signing.jks"
+          else
+            echo "::warning::Debug signed; in-place upgrade depends on matching existing signing key."
+          fi
+      - name: Compile APK
+        working-directory: s-browser
+        env:
+          GRIFLY_KEYSTORE_FILE: ${{ runner.temp }}/grifly-stable-signing.jks
+          GRIFLY_KEYSTORE_PASSWORD: ${{ secrets.GRIFLY_SIGNING_STORE_PASSWORD }}
+          GRIFLY_KEY_ALIAS: ${{ secrets.GRIFLY_SIGNING_KEY_ALIAS }}
+          GRIFLY_KEY_PASSWORD: ${{ secrets.GRIFLY_SIGNING_KEY_PASSWORD }}
+        run: gradle --no-daemon --stacktrace --console=plain :app:assembleDebug
+      - name: Verify APK and stage output
+        run: |
+          mkdir -p dist
+          cp s-browser/app/build/outputs/apk/debug/app-debug.apk dist/Grifly_v2.0.0_Premium_beta.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose dist/Grifly_v2.0.0_Premium_beta.apk
+          cd dist
+          sha256sum *.apk > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Grifly-v2.0.0-Premium-APK
+          path: dist/
+          if-no-files-found: error
