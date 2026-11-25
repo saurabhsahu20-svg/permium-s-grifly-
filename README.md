@@ -2,6 +2,12 @@
 
 Version 2.0.5-beta (versionCode 30). Build with GitHub Actions.
 
+## Grifly Student Dashboard · Web
+
+[Open the live Student Dashboard](https://grifly.timelesslemur2.chatgpt.site/#study)
+
+Study Resources, News, Exams & Jobs, Daily Assembly, and the English–Hindi Dictionary each have their own icon and colour. The sections start collapsed and open on the same page when tapped. Opening a section closes the previous one.
+
 ## In-place updates
 
 The package stays `com.saurabhsvision.sbrowser`. Keep the existing storage schema and increase versionCode for each release. A permanent private signing key is essential. The newly generated key establishes a new signing baseline, which cannot replace a differently signed legacy APK in place. Configure these GitHub Actions repository secrets using the original owner-controlled key:
